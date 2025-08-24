@@ -1,10 +1,11 @@
-import { Button } from "@/components/ui/button"
-import { BalanceChecker } from "@/components/balance-checker"
-import { ActionTokenSection } from "@/components/action-token-section"
-import { HomeTokenStats } from "@/components/home-token-stats"
-import Image from "next/image"
-import Link from "next/link"
-import { ProjectsGrid } from "@/components/projects-grid"
+import { Button } from "@/components/ui/button";
+import { BalanceChecker } from "@/components/balance-checker";
+import { ActionTokenSection } from "@/components/action-token-section";
+import { HomeTokenStats } from "@/components/home-token-stats";
+import Image from "next/image";
+import Link from "next/link";
+import { ProjectsGrid } from "@/components/projects-grid";
+import { ConnectWallet } from "@/components/wallet-connect";
 
 export default function HomePage() {
   return (
@@ -29,8 +30,9 @@ export default function HomePage() {
             <span className="holographic-text">THE HOLLOW</span>
           </h1>
           <p className="mx-auto mt-6 max-w-[700px] text-lg text-muted-foreground md:text-xl">
-            Welcome to The Hollow, the official sanctuary for Hollowers. Access exclusive rewards, manage your HOLLOWVOX
-            collectibles, and dive deep into the lore. Your journey into the digital frontier starts here.
+            Welcome to The Hollow, the official sanctuary for Hollowers. Access
+            exclusive rewards, manage your HOLLOWVOX collectibles, and dive deep
+            into the lore. Your journey into the digital frontier starts here.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-4">
             <Button asChild size="lg" className="font-bold">
@@ -39,13 +41,18 @@ export default function HomePage() {
           </div>
         </section>
 
+        <ConnectWallet />
+
         {/* Projects from /my-projects */}
         <section className="py-12 md:py-20 bg-muted/20">
           <div className="container mx-auto px-4">
             <div className="mx-auto mb-8 text-center md:mb-12 max-w-2xl">
-              <h2 className="font-orbitron text-3xl font-bold md:text-4xl">Projects</h2>
+              <h2 className="font-orbitron text-3xl font-bold md:text-4xl">
+                Projects
+              </h2>
               <p className="mt-3 text-muted-foreground">
-                A selection of platforms, products, and creative works brought to life.
+                A selection of platforms, products, and creative works brought
+                to life.
               </p>
             </div>
             <div className="max-w-6xl mx-auto">
@@ -60,9 +67,11 @@ export default function HomePage() {
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto text-center">
               <p className="text-sm text-muted-foreground leading-relaxed">
-                <strong>Disclaimer:</strong> $HOLLOWVOX is a fan-access token that provides exclusive access to content,
-                voting, and merchandise. From time to time, token holders may receive gifts or rewards at the sole
-                discretion of the artist. These rewards are not guaranteed, not proportionate to token holdings, and do
+                <strong>Disclaimer:</strong> $HOLLOWVOX is a fan-access token
+                that provides exclusive access to content, voting, and
+                merchandise. From time to time, token holders may receive gifts
+                or rewards at the sole discretion of the artist. These rewards
+                are not guaranteed, not proportionate to token holdings, and do
                 not constitute investment returns.
               </p>
             </div>
@@ -72,9 +81,12 @@ export default function HomePage() {
         <section className="py-12 md:py-24">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
-              <h2 className="font-orbitron text-3xl font-bold md:text-4xl mb-4">HOLLOWVOX Live Statistics</h2>
+              <h2 className="font-orbitron text-3xl font-bold md:text-4xl mb-4">
+                HOLLOWVOX Live Statistics
+              </h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">
-                Real-time market data for HOLLOWVOX tokens powered by the Stellar network. Data updates every 2 minutes.
+                Real-time market data for HOLLOWVOX tokens powered by the
+                Stellar network. Data updates every 2 minutes.
               </p>
             </div>
             <HomeTokenStats />
@@ -84,9 +96,12 @@ export default function HomePage() {
         <section className="py-12 md:py-24">
           <div className="container mx-auto px-4">
             <div className="text-center mb-8">
-              <h2 className="font-orbitron text-3xl font-bold md:text-4xl">Check Your HOLLOWVOX Balance</h2>
+              <h2 className="font-orbitron text-3xl font-bold md:text-4xl">
+                Check Your HOLLOWVOX Balance
+              </h2>
               <p className="mt-4 text-muted-foreground">
-                Enter any Stellar public key to check HOLLOWVOX token holdings and Hollower tier status
+                Enter any Stellar public key to check HOLLOWVOX token holdings
+                and Hollower tier status
               </p>
             </div>
             <div className="max-w-4xl mx-auto">
@@ -97,5 +112,5 @@ export default function HomePage() {
       </div>
       <div className="glitch-overlay pointer-events-none absolute inset-0" />
     </div>
-  )
+  );
 }
