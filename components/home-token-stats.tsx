@@ -84,13 +84,13 @@ export function HomeTokenStats() {
     }
   };
 
-  // useEffect(() => {
-  //   fetchTokenStats()
+  useEffect(() => {
+    fetchTokenStats();
 
-  //   // Refresh data every 2 minutes
-  //   const interval = setInterval(fetchTokenStats, 2 * 60 * 1000)
-  //   return () => clearInterval(interval)
-  // }, [])
+    // Refresh data every 2 minutes
+    const interval = setInterval(fetchTokenStats, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleRefresh = () => {
     setIsLoading(true);

@@ -155,7 +155,7 @@ export async function GET() {
         // First try: from asset API response
         if (assetData._embedded?.records?.length > 0) {
           const assetRecord = assetData._embedded.records[0];
-          console.log(`Asset record for ${issuer.name}:`, assetRecord);
+          // console.log(`Asset record for ${issuer.name}:`, assetRecord);
 
           // Try different possible field names for supply
           if (assetRecord.amount) {

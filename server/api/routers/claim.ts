@@ -158,77 +158,85 @@ export const claimRouter = createTRPCRouter({
 
   // Get all claims and stats (admin only)
   getAdminDashboard: protectedProcedure.query(async ({ ctx }) => {
-    const claimsData = await ctx.db
-      .select({
-        id: userClaimsTable.id,
-        itemId: userClaimsTable.itemId,
-        walletAddress: userClaimsTable.walletAddress,
-        userName: userClaimsTable.userName,
-        userEmail: userClaimsTable.userEmail,
-        userAddress: userClaimsTable.userAddress,
-        userPhone: userClaimsTable.userPhone,
-        userNotes: userClaimsTable.userNotes,
-        entries: userClaimsTable.entries,
-        status: userClaimsTable.status,
-        claimedAt: userClaimsTable.claimedAt,
-        itemTitle: claimableItemsTable.title,
-      })
-      .from(userClaimsTable)
-      .innerJoin(
-        claimableItemsTable,
-        eq(userClaimsTable.itemId, claimableItemsTable.id)
-      )
-      .orderBy(desc(userClaimsTable.claimedAt));
+    try {
+      const claimsData = await ctx.db
+        .select({
+          id: userClaimsTable.id,
+          itemId: userClaimsTable.itemId,
+          walletAddress: userClaimsTable.walletAddress,
+          userName: userClaimsTable.userName,
+          userEmail: userClaimsTable.userEmail,
+          userAddress: userClaimsTable.userAddress,
+          userPhone: userClaimsTable.userPhone,
+          userNotes: userClaimsTable.userNotes,
+          entries: userClaimsTable.entries,
+          status: userClaimsTable.status,
+          claimedAt: userClaimsTable.claimedAt,
+          itemTitle: claimableItemsTable.title,
+        })
+        .from(userClaimsTable)
+        .innerJoin(
+          claimableItemsTable,
+          eq(userClaimsTable.itemId, claimableItemsTable.id)
+        )
+        .orderBy(desc(userClaimsTable.claimedAt));
 
-    const claims = claimsData.map((claim) => ({
-      id: claim.id,
-      itemId: claim.itemId,
-      walletAddress: claim.walletAddress,
-      userInfo: {
-        name: claim.userName,
-        email: claim.userEmail,
-        address: claim.userAddress,
-        phone: claim.userPhone,
-        notes: claim.userNotes,
-      },
-      entries: claim.entries,
-      status: claim.status,
-      claimedAt: claim.claimedAt,
-      itemTitle: claim.itemTitle,
-    }));
+      const claims = claimsData.map((claim) => ({
+        id: claim.id,
+        itemId: claim.itemId,
+        walletAddress: claim.walletAddress,
+        userInfo: {
+          name: claim.userName,
+          email: claim.userEmail,
+          address: claim.userAddress,
+          phone: claim.userPhone,
+          notes: claim.userNotes,
+        },
+        entries: claim.entries,
+        status: claim.status,
+        claimedAt: claim.claimedAt,
+        itemTitle: claim.itemTitle,
+      }));
 
-    const stats = await ctx.db
-      .select({
-        totalClaims: count(userClaimsTable.id),
-        pendingClaims: count(sql`CASE WHEN status = 'pending' THEN 1 END`),
-        approvedClaims: count(sql`CASE WHEN status = 'approved' THEN 1 END`),
-        shippedClaims: count(sql`CASE WHEN status = 'shipped' THEN 1 END`),
-        completedClaims: count(sql`CASE WHEN status = 'completed' THEN 1 END`),
-        cancelledClaims: count(sql`CASE WHEN status = 'cancelled' THEN 1 END`),
-        uniqueUsers: count(sql`DISTINCT wallet_address`),
-      })
-      .from(userClaimsTable);
+      const stats = await ctx.db
+        .select({
+          totalClaims: count(userClaimsTable.id),
+          pendingClaims: count(sql`CASE WHEN status = 'pending' THEN 1 END`),
+          approvedClaims: count(sql`CASE WHEN status = 'approved' THEN 1 END`),
+          shippedClaims: count(sql`CASE WHEN status = 'shipped' THEN 1 END`),
+          completedClaims: count(
+            sql`CASE WHEN status = 'completed' THEN 1 END`
+          ),
+          cancelledClaims: count(
+            sql`CASE WHEN status = 'cancelled' THEN 1 END`
+          ),
+          uniqueUsers: count(sql`DISTINCT wallet_address`),
+        })
+        .from(userClaimsTable);
 
-    const itemStats = await ctx.db
-      .select({
-        totalItems: count(claimableItemsTable.id),
-        activeItems: count(sql`CASE WHEN is_active = true THEN 1 END`),
-        expiredItems: count(
-          sql`CASE WHEN expiration_date < unixepoch() THEN 1 END`
-        ),
-        itemsWithWinners: count(
-          sql`CASE WHEN winner_announced = true THEN 1 END`
-        ),
-      })
-      .from(claimableItemsTable);
+      const itemStats = await ctx.db
+        .select({
+          totalItems: count(claimableItemsTable.id),
+          activeItems: count(sql`CASE WHEN is_active = true THEN 1 END`),
+          expiredItems: count(
+            sql`CASE WHEN expiration_date < unixepoch() THEN 1 END`
+          ),
+          itemsWithWinners: count(
+            sql`CASE WHEN winner_announced = true THEN 1 END`
+          ),
+        })
+        .from(claimableItemsTable);
 
-    return {
-      claims,
-      stats: {
-        ...stats[0],
-        ...itemStats[0],
-      },
-    };
+      return {
+        claims,
+        stats: {
+          ...stats[0],
+          ...itemStats[0],
+        },
+      };
+    } catch (e) {
+      console.error("Error fetching claims data:", e);
+    }
   }),
 
   // Update claim status (admin only)

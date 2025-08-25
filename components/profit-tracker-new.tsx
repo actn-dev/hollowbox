@@ -129,7 +129,7 @@ export function ProfitTracker() {
               HOLLOWVOX Token Tracker
               <Database
                 className="h-5 w-5 text-blue-400"
-                title="Database-powered"
+                // title="Database-powered"
               />
             </CardTitle>
             <CardDescription className="mt-2">

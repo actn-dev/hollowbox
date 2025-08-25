@@ -21,7 +21,12 @@ export const tiersRouter = createTRPCRouter({
         tierLevel: z.number(),
         tierName: z.string(),
         tokenRequirement: z.number(),
+        tierColor: z.string().optional(),
+        tierBgColor: z.string().optional(),
+        tierBorderColor: z.string().optional(),
+        tierIcon: z.string().optional(),
         benefits: z.array(z.string()),
+        isActive: z.boolean().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -35,6 +40,10 @@ export const tiersRouter = createTRPCRouter({
         tierLevel: z.number().optional(),
         tierName: z.string().optional(),
         tokenRequirement: z.number().optional(),
+        tierColor: z.string().optional(),
+        tierBgColor: z.string().optional(),
+        tierBorderColor: z.string().optional(),
+        tierIcon: z.string().optional(),
         benefits: z.array(z.string()).optional(),
         isActive: z.boolean().optional(),
       })

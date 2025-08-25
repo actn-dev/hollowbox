@@ -17,9 +17,9 @@ import { db } from "~/server/db";
 export const profitTrackerRouter = createTRPCRouter({
   // Get profit tracker data with aggregations
   getData: publicProcedure.query(async ({ ctx }) => {
-    console.log(
-      "hi hello.....ee dlfsjflksd flskfjs;ldfjs;dlkj;sldfkjlk........."
-    );
+    // console.log(
+    //   "hi hello.....ee dlfsjflksd flskfjs;ldfjs;dlkj;sldfkjlk........."
+    // );
     // Ensure default wallets exist
     await seedDefaultWallets(ctx.db);
 

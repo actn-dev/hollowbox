@@ -1,42 +1,29 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { useState } from "react";
-
-import { TierEditForm } from "@/components/admin/tier-edit-form";
+import { useState, useEffect } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle, Clock, Edit, Shield, Truck, X } from "lucide-react";
-import { api, type RouterOutputs } from "~/trpc/react";
+import { api } from "~/trpc/react";
+import type { RouterOutputs } from "~/trpc/react";
+import { AdminStatsCards } from "@/components/admin/admin-stats-cards";
+import { CreateItemForm } from "@/components/admin/create-item-form";
+import { ItemsManagement } from "@/components/admin/items-management";
+import { TierManagement } from "@/components/admin/tier-management";
+import { ClaimsManagement } from "@/components/admin/claims-management";
 
-type AdminClaim = RouterOutputs["claim"]["getAdminDashboard"]["claims"][0];
 type ClaimableItem = RouterOutputs["claim"]["getItems"][0];
 type TierConfig = RouterOutputs["tiers"]["getTiers"][0];
 
 export default function AdminPage() {
   const [editingTier, setEditingTier] = useState<string | null>(null);
+  const [isAnnouncingWinner, setIsAnnouncingWinner] = useState<string | null>(
+    null
+  );
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
-  const [newItem, setNewItem] = useState({
-    title: "",
-    description: "",
-    imageUrl: "",
-    tokensRequired: "",
-    category: "digital" as "digital" | "physical" | "experience",
-    claimsRemaining: "",
-    expirationDate: "",
-  });
 
   // tRPC Hooks
   const {
@@ -50,15 +37,6 @@ export default function AdminPage() {
   const createItemMutation = api.claim.createItem.useMutation({
     onSuccess: () => {
       setMessage({ type: "success", text: "Item created successfully" });
-      setNewItem({
-        title: "",
-        description: "",
-        imageUrl: "",
-        tokensRequired: "",
-        category: "digital",
-        claimsRemaining: "",
-        expirationDate: "",
-      });
       refetchItems();
       refetchAdminData();
     },
@@ -92,6 +70,7 @@ export default function AdminPage() {
         type: "success",
         text: `Winner announced! ${data.winner?.userName} (${data.winner?.walletAddress}) won.`,
       });
+      setIsAnnouncingWinner(null);
       refetchAdminData();
       refetchItems();
     },
@@ -100,6 +79,7 @@ export default function AdminPage() {
         type: "error",
         text: error.message || "Failed to announce winner",
       });
+      setIsAnnouncingWinner(null);
     },
   });
 
@@ -117,59 +97,53 @@ export default function AdminPage() {
     },
   });
 
-  const handleCreateItem = () => {
-    if (!newItem.title || !newItem.description || !newItem.tokensRequired) {
-      setMessage({ type: "error", text: "Please fill in all required fields" });
-      return;
+  const createTierMutation = api.tiers.createTier.useMutation({
+    onSuccess: () => {
+      setMessage({ type: "success", text: "Tier created successfully" });
+      refetchTiers();
+    },
+    onError: (error) => {
+      setMessage({
+        type: "error",
+        text: error.message || "Failed to create tier",
+      });
+    },
+  });
+
+  const handleCreateItem = (
+    itemData: Parameters<typeof createItemMutation.mutate>[0]
+  ) => {
+    createItemMutation.mutate(itemData);
+  };
+
+  const handleAnnounceWinner = (itemId: string) => {
+    setIsAnnouncingWinner(itemId);
+    announceWinnerMutation.mutate({ itemId });
+  };
+
+  const handleUpdateClaimStatus = (claimId: string, status: string) => {
+    updateClaimStatusMutation.mutate({ claimId, status });
+  };
+
+  const handleUpdateTier = (
+    updatedData: Partial<TierConfig> & { id: string }
+  ) => {
+    updateTierMutation.mutate(updatedData);
+  };
+
+  const handleCreateTier = (
+    tierData: Parameters<typeof createTierMutation.mutate>[0]
+  ) => {
+    createTierMutation.mutate(tierData);
+  };
+
+  // Clear message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 5000);
+      return () => clearTimeout(timer);
     }
-    createItemMutation.mutate({
-      ...newItem,
-      tokensRequired: Number(newItem.tokensRequired),
-      claimsRemaining: newItem.claimsRemaining
-        ? Number(newItem.claimsRemaining)
-        : null,
-      expirationDate: newItem.expirationDate
-        ? new Date(newItem.expirationDate)
-        : null,
-    });
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      pending: { color: "border-yellow-500 text-yellow-400", icon: Clock },
-      approved: { color: "border-green-500 text-green-400", icon: CheckCircle },
-      shipped: { color: "border-blue-500 text-blue-400", icon: Truck },
-      completed: {
-        color: "border-green-500 text-green-400",
-        icon: CheckCircle,
-      },
-      cancelled: { color: "border-red-500 text-red-400", icon: X },
-    };
-
-    const config = statusConfig[status as keyof typeof statusConfig];
-    const Icon = config?.icon || Clock;
-
-    return (
-      <Badge
-        variant="outline"
-        className={config?.color || "border-gray-500 text-gray-400"}
-      >
-        <Icon className="h-3 w-3 mr-1" />
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
-  };
-
-  const canAnnounceWinner = (item: ClaimableItem) => {
-    if (item.winnerAnnounced) return false;
-    if (item.expirationDate && new Date(item.expirationDate) > new Date())
-      return false;
-    return true;
-  };
-
-  const formatDateTime = (date: Date) => {
-    return new Date(date).toLocaleString();
-  };
+  }, [message]);
 
   if (isLoadingAdmin) {
     return (
@@ -217,11 +191,7 @@ export default function AdminPage() {
           </Alert>
         )}
 
-        {adminData?.stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Stats Cards */}
-          </div>
-        )}
+        {adminData?.stats && <AdminStatsCards stats={adminData.stats} />}
 
         <Tabs defaultValue="items" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
@@ -231,56 +201,39 @@ export default function AdminPage() {
           </TabsList>
 
           <TabsContent value="items" className="space-y-8">
-            {/* Create and Manage Items */}
+            <CreateItemForm
+              onCreateItem={handleCreateItem}
+              isCreating={createItemMutation.isPending}
+            />
+            {items && (
+              <ItemsManagement
+                items={items}
+                onAnnounceWinner={handleAnnounceWinner}
+                isAnnouncingWinner={isAnnouncingWinner}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="tiers" className="space-y-8">
-            <Card className="bg-card/50 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="font-orbitron text-2xl flex items-center gap-2">
-                  <Shield className="h-6 w-6 text-primary" />
-                  Tier Configuration
-                </CardTitle>
-                <CardDescription>
-                  Configure tier requirements and benefits for the rewards
-                  system
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {tiers?.map((tier) => (
-                    <div key={tier.id} className="p-6 bg-muted/20 rounded-lg">
-                      {editingTier === tier.id ? (
-                        <TierEditForm
-                          tier={tier}
-                          onSave={(updatedData) =>
-                            updateTierMutation.mutate(updatedData as any)
-                          }
-                          onCancel={() => setEditingTier(null)}
-                        />
-                      ) : (
-                        <div className="flex items-start justify-between gap-4">
-                          {/* Tier Display */}
-                          <Button
-                            onClick={() => setEditingTier(tier.id)}
-                            size="sm"
-                            variant="outline"
-                            className="flex items-center gap-2"
-                          >
-                            <Edit className="h-4 w-4" />
-                            Edit
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {tiers && (
+              <TierManagement
+                tiers={tiers}
+                onUpdateTier={handleUpdateTier}
+                onCreateTier={handleCreateTier}
+                editingTier={editingTier}
+                setEditingTier={setEditingTier}
+                isCreatingTier={createTierMutation.isPending}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="claims" className="space-y-8">
-            {/* Claims Management */}
+            {adminData?.claims && (
+              <ClaimsManagement
+                claims={adminData.claims}
+                onUpdateClaimStatus={handleUpdateClaimStatus}
+              />
+            )}
           </TabsContent>
         </Tabs>
       </div>
