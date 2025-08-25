@@ -378,3 +378,21 @@ export class StellarService {
 }
 
 export const stellarService = new StellarService();
+
+export async function getStellarAssetBalance(
+  accountId: string
+): Promise<number> {
+  try {
+    const account = await stellarService.getAccount(accountId);
+    const hollowvoxBalance = account.balances.find(
+      (b) =>
+        b.asset_type !== "native" &&
+        b.asset_code === HOLLOWVOX_ASSET_CODE &&
+        b.asset_issuer === HOLLOWVOX_ISSUER
+    );
+    return hollowvoxBalance ? parseFloat(hollowvoxBalance.balance) : 0;
+  } catch (error) {
+    console.error(`Failed to get balance for ${accountId}:`, error);
+    return 0;
+  }
+}

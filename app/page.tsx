@@ -41,7 +41,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <ConnectWallet />
+        {/* <ConnectWallet /> */}
 
         {/* Projects from /my-projects */}
         <section className="py-12 md:py-20 bg-muted/20">

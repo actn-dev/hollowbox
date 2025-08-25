@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { RewardCard } from "@/components/reward-card";
 import type { Reward } from "@/lib/types";
-import { useWallet } from "@/contexts/wallet-context";
+import { useAuth } from "@/hooks/use-auth";
+import { useAuthModal } from "@/contexts/auth-modal-context";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,15 +17,28 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Circle, Star, Crown, CheckCircle, Lock, Wallet } from "lucide-react";
 import { api, type RouterOutputs } from "~/trpc/react";
+import { getStellarAssetBalance } from "@/lib/stellar-service";
 
 const allRewards: Reward[] = [];
 
 type TierConfig = RouterOutputs["tiers"]["getTiers"][0];
 
 export default function RewardsPage() {
-  const { isConnected, tierLevel, balance, connect, isLoading } = useWallet();
+  const { isConnected, publicKey, isLoading } = useAuth();
+  const { openModal } = useAuthModal();
+  const [balance, setBalance] = useState<number | null>(null);
   const { data: tiers, isLoading: tiersLoading } =
     api.tiers.getTiers.useQuery();
+
+  useEffect(() => {
+    if (isConnected && publicKey) {
+      const fetchBalance = async () => {
+        const assetBalance = await getStellarAssetBalance(publicKey);
+        setBalance(assetBalance);
+      };
+      fetchBalance();
+    }
+  }, [isConnected, publicKey]);
 
   const getUserTier = () => {
     if (!balance || balance === null || !tiers || tiers.length === 0) return 0;
@@ -46,7 +60,7 @@ export default function RewardsPage() {
     return highestQualifiedTier;
   };
 
-  const currentTier = tierLevel || getUserTier();
+  const currentTier = getUserTier();
   const currentTierData = tiers?.find((tier) => tier.tierLevel === currentTier);
 
   const getIconComponent = (iconName: string) => {
@@ -83,23 +97,10 @@ export default function RewardsPage() {
             for Hollowers in The Hollow.
           </p>
 
-          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              onClick={() => connect("freighter")}
-              disabled={isLoading}
-              className="flex items-center gap-2"
-            >
-              <Wallet className="h-4 w-4" />
-              {isLoading ? "Connecting..." : "Connect Freighter"}
-            </Button>
-            <Button
-              onClick={() => connect("rabet")}
-              disabled={isLoading}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Wallet className="h-4 w-4" />
-              {isLoading ? "Connecting..." : "Connect Rabet"}
+          <div className="mt-8">
+            <Button onClick={openModal} disabled={isLoading}>
+              <Wallet className="mr-2 h-4 w-4" />
+              {isLoading ? "Connecting..." : "Connect Wallet"}
             </Button>
           </div>
         </div>

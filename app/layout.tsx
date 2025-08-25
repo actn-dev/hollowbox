@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AppHeader } from "@/components/layout/app-header";
 import { AppFooter } from "@/components/layout/app-footer";
-import { WalletProvider } from "@/contexts/wallet-context";
+import { AuthModalProvider } from "@/contexts/auth-modal-context";
 import { GlobalSignalCatcher } from "@/components/signal-hunt/global-signal-catcher";
 import { TRPCReactProvider } from "@/trpc/react";
+import { AuthModalController } from "@/components/auth-modal-controller";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const orbitron = Orbitron({ subsets: ["latin"], variable: "--font-orbitron" });
@@ -44,7 +45,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <WalletProvider>
+            <AuthModalProvider>
               <div className="relative flex min-h-dvh flex-col bg-background">
                 <AppHeader />
                 <main className="flex-1 w-full">
@@ -55,7 +56,8 @@ export default function RootLayout({
                 <AppFooter />
               </div>
               <GlobalSignalCatcher />
-            </WalletProvider>
+              <AuthModalController />
+            </AuthModalProvider>
           </ThemeProvider>
         </TRPCReactProvider>
       </body>

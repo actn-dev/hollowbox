@@ -19,6 +19,7 @@ export function ConnectWallet() {
           <button onClick={() => authClient.signOut()}>SignOut</button>
         </div>
       )}
+
       <AuthModal
         open={open}
         onClose={() => setOpen(false)}
