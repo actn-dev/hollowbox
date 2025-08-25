@@ -93,6 +93,7 @@ export const userClaimsTable = createTable(
     userAddress: d.text("user_address"), // Shipping address for physical items
     userPhone: d.text("user_phone", { length: 50 }),
     userNotes: d.text("user_notes"),
+    entries: d.integer("entries").notNull().default(0),
     status: d.text("status", { length: 50 }).notNull().default("pending"),
     claimedAt: d
       .integer("claimed_at", { mode: "timestamp" })

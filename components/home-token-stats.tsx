@@ -1,10 +1,16 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Loader2, TrendingUp, TrendingDown, ExternalLink, RefreshCw } from "lucide-react"
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Loader2,
+  TrendingUp,
+  TrendingDown,
+  ExternalLink,
+  RefreshCw,
+} from "lucide-react";
 
 // HOLLOWVOX token issuers
 const HVX_ISSUERS = [
@@ -14,7 +20,8 @@ const HVX_ISSUERS = [
     color: "#00ff76",
     stellarExpertUrl:
       "https://stellar.expert/explorer/public/asset/HOLLOWVOX-GBPC4LULQFYZ3C5UD4C7ALAYIOXZ3L7I77XBTXQ7PLSUOXQUUZAVLMAX",
-    bandcoinUrl: "https://www.bandcoin.io/fans/creator/GDHJSO4ZGWQRKCUEAMRG3B2D7DAJCM3WCL32KBTRG2J7S7UM6WPRBYOY",
+    bandcoinUrl:
+      "https://www.bandcoin.io/fans/creator/GDHJSO4ZGWQRKCUEAMRG3B2D7DAJCM3WCL32KBTRG2J7S7UM6WPRBYOY",
   },
   {
     address: "GAUDPOA3YKO35IWSA4CMQPKE3MQSK53RPNFWTTP7UCP7QYTMSMEIEJLF",
@@ -22,68 +29,73 @@ const HVX_ISSUERS = [
     color: "#ff6b00",
     stellarExpertUrl:
       "https://stellar.expert/explorer/public/asset/HOLLOWVOX-GAUDPOA3YKO35IWSA4CMQPKE3MQSK53RPNFWTTP7UCP7QYTMSMEIEJLF",
-    lumemeUrl: "https://lu.meme/explore/memes/HOLLOWVOX-GAUDPOA3YKO35IWSA4CMQPKE3MQSK53RPNFWTTP7UCP7QYTMSMEIEJLF",
+    lumemeUrl:
+      "https://lu.meme/explore/memes/HOLLOWVOX-GAUDPOA3YKO35IWSA4CMQPKE3MQSK53RPNFWTTP7UCP7QYTMSMEIEJLF",
   },
-]
+];
 
 interface TokenStats {
-  price: number
-  volume24h: number
-  change24h: number
-  marketCap: number
-  supply: number
-  trades: number
-  lastUpdated: string
+  price: number;
+  volume24h: number;
+  change24h: number;
+  marketCap: number;
+  supply: number;
+  trades: number;
+  lastUpdated: string;
 }
 
 export function HomeTokenStats() {
-  const [tokenStats, setTokenStats] = useState<{ [key: string]: TokenStats }>({})
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const [tokenStats, setTokenStats] = useState<{ [key: string]: TokenStats }>(
+    {}
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const fetchTokenStats = async () => {
     try {
-      setError(null)
+      setError(null);
       const response = await fetch("/api/token-stats", {
         cache: "no-store",
         headers: {
           "Cache-Control": "no-cache",
         },
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json()
+      const result = await response.json();
 
       if (result.success) {
-        setTokenStats(result.data)
-        setLastRefresh(new Date())
+        setTokenStats(result.data);
+        setLastRefresh(new Date());
       } else {
-        throw new Error(result.error || "Failed to fetch token stats")
+        throw new Error(result.error || "Failed to fetch token stats");
       }
     } catch (err) {
-      console.error("Error fetching token stats:", err)
-      setError(err instanceof Error ? err.message : "Failed to fetch token statistics")
+      console.error("Error fetching token stats:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch token statistics"
+      );
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  useEffect(() => {
-    fetchTokenStats()
+  // useEffect(() => {
+  //   fetchTokenStats()
 
-    // Refresh data every 2 minutes
-    const interval = setInterval(fetchTokenStats, 2 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [])
+  //   // Refresh data every 2 minutes
+  //   const interval = setInterval(fetchTokenStats, 2 * 60 * 1000)
+  //   return () => clearInterval(interval)
+  // }, [])
 
   const handleRefresh = () => {
-    setIsLoading(true)
-    fetchTokenStats()
-  }
+    setIsLoading(true);
+    fetchTokenStats();
+  };
 
   if (isLoading && !lastRefresh) {
     return (
@@ -99,7 +111,7 @@ export function HomeTokenStats() {
           </Card>
         ))}
       </div>
-    )
+    );
   }
 
   if (error && !lastRefresh) {
@@ -118,12 +130,21 @@ export function HomeTokenStats() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
-  const totalMarketCap = Object.values(tokenStats).reduce((sum, stats) => sum + stats.marketCap, 0)
-  const totalVolume = Object.values(tokenStats).reduce((sum, stats) => sum + stats.volume24h, 0)
-  const totalTrades = Object.values(tokenStats).reduce((sum, stats) => sum + stats.trades, 0)
+  const totalMarketCap = Object.values(tokenStats).reduce(
+    (sum, stats) => sum + stats.marketCap,
+    0
+  );
+  const totalVolume = Object.values(tokenStats).reduce(
+    (sum, stats) => sum + stats.volume24h,
+    0
+  );
+  const totalTrades = Object.values(tokenStats).reduce(
+    (sum, stats) => sum + stats.trades,
+    0
+  );
 
   return (
     <div className="space-y-6">
@@ -131,13 +152,25 @@ export function HomeTokenStats() {
       <Card className="bg-card/50 backdrop-blur-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="font-orbitron text-xl">Combined Statistics</CardTitle>
+            <CardTitle className="font-orbitron text-xl">
+              Combined Statistics
+            </CardTitle>
             <div className="flex items-center gap-2">
-              <Button onClick={handleRefresh} variant="ghost" size="sm" disabled={isLoading} className="h-8 w-8 p-0">
-                <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <Button
+                onClick={handleRefresh}
+                variant="ghost"
+                size="sm"
+                disabled={isLoading}
+                className="h-8 w-8 p-0"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                />
               </Button>
               {lastRefresh && (
-                <span className="text-xs text-muted-foreground">Updated {lastRefresh.toLocaleTimeString()}</span>
+                <span className="text-xs text-muted-foreground">
+                  Updated {lastRefresh.toLocaleTimeString()}
+                </span>
               )}
             </div>
           </div>
@@ -145,15 +178,26 @@ export function HomeTokenStats() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-muted/20 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Total Market Cap</p>
+              <p className="text-sm text-muted-foreground mb-1">
+                Total Market Cap
+              </p>
               <p className="font-bold text-lg">
-                ${totalMarketCap > 0 ? totalMarketCap.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0"}
+                $
+                {totalMarketCap > 0
+                  ? totalMarketCap.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })
+                  : "0"}
               </p>
             </div>
             <div className="text-center p-4 bg-muted/20 rounded-lg">
               <p className="text-sm text-muted-foreground mb-1">24h Volume</p>
               <p className="font-bold text-lg">
-                {totalVolume > 0 ? totalVolume.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "0"}
+                {totalVolume > 0
+                  ? totalVolume.toLocaleString(undefined, {
+                      maximumFractionDigits: 0,
+                    })
+                  : "0"}
               </p>
             </div>
             <div className="text-center p-4 bg-muted/20 rounded-lg">
@@ -161,7 +205,9 @@ export function HomeTokenStats() {
               <p className="font-bold text-lg">{totalTrades}</p>
             </div>
             <div className="text-center p-4 bg-muted/20 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Active Tokens</p>
+              <p className="text-sm text-muted-foreground mb-1">
+                Active Tokens
+              </p>
               <p className="font-bold text-lg">{HVX_ISSUERS.length}</p>
             </div>
           </div>
@@ -171,8 +217,8 @@ export function HomeTokenStats() {
       {/* Individual Token Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {HVX_ISSUERS.map((issuer) => {
-          const stats = tokenStats[issuer.name]
-          if (!stats) return null
+          const stats = tokenStats[issuer.name];
+          if (!stats) return null;
 
           return (
             <Card
@@ -183,12 +229,22 @@ export function HomeTokenStats() {
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <CardTitle className="font-orbitron text-xl">{issuer.name}</CardTitle>
-                    <Badge variant="outline" style={{ borderColor: issuer.color, color: issuer.color }}>
+                    <CardTitle className="font-orbitron text-xl">
+                      {issuer.name}
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      style={{ borderColor: issuer.color, color: issuer.color }}
+                    >
                       HOLLOWVOX
                     </Badge>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0" asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    asChild
+                  >
                     <a
                       href={issuer.stellarExpertUrl}
                       target="_blank"
@@ -206,18 +262,30 @@ export function HomeTokenStats() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-4 bg-muted/10 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Current Price</p>
-                    <p className="font-bold text-xl">${stats.price > 0 ? stats.price.toFixed(6) : "0.000000"}</p>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      Current Price
+                    </p>
+                    <p className="font-bold text-xl">
+                      ${stats.price > 0 ? stats.price.toFixed(6) : "0.000000"}
+                    </p>
                   </div>
                   <div className="text-center p-4 bg-muted/10 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">24h Change</p>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      24h Change
+                    </p>
                     <div className="flex items-center justify-center gap-1">
                       {stats.change24h >= 0 ? (
                         <TrendingUp className="h-4 w-4 text-green-400" />
                       ) : (
                         <TrendingDown className="h-4 w-4 text-red-400" />
                       )}
-                      <span className={`font-bold ${stats.change24h >= 0 ? "text-green-400" : "text-red-400"}`}>
+                      <span
+                        className={`font-bold ${
+                          stats.change24h >= 0
+                            ? "text-green-400"
+                            : "text-red-400"
+                        }`}
+                      >
                         {stats.change24h.toFixed(2)}%
                       </span>
                     </div>
@@ -226,34 +294,53 @@ export function HomeTokenStats() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col">
-                    <span className="text-sm text-muted-foreground">24h Volume</span>
+                    <span className="text-sm text-muted-foreground">
+                      24h Volume
+                    </span>
                     <span className="font-mono text-lg font-semibold">
                       {stats.volume24h > 0
-                        ? stats.volume24h.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                        ? stats.volume24h.toLocaleString(undefined, {
+                            maximumFractionDigits: 0,
+                          })
                         : "0"}
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-sm text-muted-foreground">Supply</span>
+                    <span className="text-sm text-muted-foreground">
+                      Supply
+                    </span>
                     <span className="font-mono text-lg font-semibold">
-                      {stats.supply > 0 ? stats.supply.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "0"}
+                      {stats.supply > 0
+                        ? stats.supply.toLocaleString(undefined, {
+                            maximumFractionDigits: 0,
+                          })
+                        : "0"}
                     </span>
                   </div>
                 </div>
 
                 <div className="flex flex-col">
-                  <span className="text-sm text-muted-foreground">Market Cap</span>
+                  <span className="text-sm text-muted-foreground">
+                    Market Cap
+                  </span>
                   <span className="font-bold text-xl">
                     $
                     {stats.marketCap > 0
-                      ? stats.marketCap.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                      ? stats.marketCap.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })
                       : "0"}
                   </span>
                 </div>
 
                 <div className="pt-3 border-t border-border/50">
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1 bg-transparent" asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 bg-transparent"
+                      asChild
+                    >
                       <a
                         href={issuer.stellarExpertUrl}
                         target="_blank"
@@ -265,7 +352,12 @@ export function HomeTokenStats() {
                       </a>
                     </Button>
                     {issuer.lumemeUrl && (
-                      <Button variant="outline" size="sm" className="flex-1 bg-transparent" asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 bg-transparent"
+                        asChild
+                      >
                         <a
                           href={issuer.lumemeUrl}
                           target="_blank"
@@ -278,7 +370,12 @@ export function HomeTokenStats() {
                       </Button>
                     )}
                     {issuer.bandcoinUrl && (
-                      <Button variant="outline" size="sm" className="flex-1 bg-transparent" asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 bg-transparent"
+                        asChild
+                      >
                         <a
                           href={issuer.bandcoinUrl}
                           target="_blank"
@@ -294,9 +391,9 @@ export function HomeTokenStats() {
                 </div>
               </CardContent>
             </Card>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }
