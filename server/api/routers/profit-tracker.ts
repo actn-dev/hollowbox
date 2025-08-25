@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sum, count, and, sql } from "drizzle-orm";
 
 import {
   createTRPCRouter,
@@ -11,8 +11,131 @@ import {
   profitTrackerSnapshotsTable,
   profitTrackerTransactionsTable,
 } from "~/server/db/schema/other";
+import { stellarService, StellarService } from "~/lib/stellar-service";
+import { db } from "~/server/db";
 
 export const profitTrackerRouter = createTRPCRouter({
+  // Get profit tracker data with aggregations
+  getData: publicProcedure.query(async ({ ctx }) => {
+    console.log(
+      "hi hello.....ee dlfsjflksd flskfjs;ldfjs;dlkj;sldfkjlk........."
+    );
+    // Ensure default wallets exist
+    await seedDefaultWallets(ctx.db);
+
+    // Get all wallets with their latest snapshots
+    const walletsData = await ctx.db
+      .select({
+        // Wallet info
+        address: profitTrackerWalletsTable.address,
+        name: profitTrackerWalletsTable.name,
+        color: profitTrackerWalletsTable.color,
+        description: profitTrackerWalletsTable.description,
+        // Latest snapshot data
+        currentBalances: profitTrackerSnapshotsTable.currentBalances,
+        totalHollowvoxSold: profitTrackerSnapshotsTable.totalHollowvoxSold,
+        totalXlmReceived: profitTrackerSnapshotsTable.totalXlmReceived,
+        averageSellPrice: profitTrackerSnapshotsTable.averageSellPrice,
+        estimatedProfit: profitTrackerSnapshotsTable.estimatedProfit,
+        actionFundAllocation: profitTrackerSnapshotsTable.actionFundAllocation,
+        impactFundAllocation: profitTrackerSnapshotsTable.impactFundAllocation,
+        totalLiquidityProvided:
+          profitTrackerSnapshotsTable.totalLiquidityProvided,
+        transactionCount: profitTrackerSnapshotsTable.transactionCount,
+        lastTransactionDate: profitTrackerSnapshotsTable.lastTransactionDate,
+        lastUpdated: profitTrackerSnapshotsTable.createdAt,
+      })
+      .from(profitTrackerWalletsTable)
+      .leftJoin(
+        profitTrackerSnapshotsTable,
+        eq(
+          profitTrackerWalletsTable.address,
+          profitTrackerSnapshotsTable.walletAddress
+        )
+      )
+      .orderBy(desc(profitTrackerWalletsTable.createdAt));
+
+    // Get recent transactions for each wallet
+    const walletsWithTransactions = await Promise.all(
+      walletsData.map(async (wallet) => {
+        const recentTransactions = await ctx.db
+          .select()
+          .from(profitTrackerTransactionsTable)
+          .where(
+            eq(profitTrackerTransactionsTable.walletAddress, wallet.address)
+          )
+          .orderBy(desc(profitTrackerTransactionsTable.transactionDate))
+          .limit(10);
+
+        return {
+          ...wallet,
+          currentBalances: wallet.currentBalances
+            ? JSON.parse(wallet.currentBalances as string)
+            : {},
+          totalHollowvoxSold: Number(wallet.totalHollowvoxSold || 0),
+          totalXlmReceived: Number(wallet.totalXlmReceived || 0),
+          averageSellPrice: Number(wallet.averageSellPrice || 0),
+          estimatedProfit: Number(wallet.estimatedProfit || 0),
+          actionFundAllocation: Number(wallet.actionFundAllocation || 0),
+          impactFundAllocation: Number(wallet.impactFundAllocation || 0),
+          totalLiquidityProvided: Number(wallet.totalLiquidityProvided || 0),
+          transactionCount: Number(wallet.transactionCount || 0),
+          recentTransactions: recentTransactions.map((tx) => ({
+            id: tx.id,
+            date: new Date(tx.transactionDate).toISOString(),
+            type: tx.transactionType,
+            hollowvoxAmount: Number(tx.hollowvoxAmount || 0),
+            xlmAmount: Number(tx.xlmAmount || 0),
+            price: Number(tx.price || 0),
+            counterparty: tx.counterparty,
+            poolShares: tx.poolShares ? Number(tx.poolShares) : undefined,
+          })),
+        };
+      })
+    );
+
+    // Calculate combined metrics
+    const combinedProfit = walletsWithTransactions.reduce(
+      (sum, wallet) => sum + wallet.estimatedProfit,
+      0
+    );
+    const combinedActionFund = walletsWithTransactions.reduce(
+      (sum, wallet) => sum + wallet.actionFundAllocation,
+      0
+    );
+    const combinedImpactFund = walletsWithTransactions.reduce(
+      (sum, wallet) => sum + wallet.impactFundAllocation,
+      0
+    );
+    const combinedLiquidity = walletsWithTransactions.reduce(
+      (sum, wallet) => sum + wallet.totalLiquidityProvided,
+      0
+    );
+    const totalTransactions = walletsWithTransactions.reduce(
+      (sum, wallet) => sum + wallet.transactionCount,
+      0
+    );
+
+    // Get the most recent update time
+    const lastRefresh = walletsWithTransactions.reduce((latest, wallet) => {
+      if (!wallet.lastUpdated) return latest;
+      const walletTime = new Date(wallet.lastUpdated).getTime();
+      return walletTime > latest ? walletTime : latest;
+    }, 0);
+
+    return {
+      wallets: walletsWithTransactions,
+      combinedProfit: Math.max(0, combinedProfit),
+      combinedActionFund: Math.max(0, combinedActionFund),
+      combinedImpactFund: Math.max(0, combinedImpactFund),
+      combinedLiquidity: Math.max(0, combinedLiquidity),
+      totalTransactions: Math.max(0, totalTransactions),
+      lastRefresh:
+        lastRefresh > 0 ? new Date(lastRefresh).toLocaleString() : "Never",
+      isLiveStreaming: false,
+    };
+  }),
+
   // Get wallet data
   getWallets: protectedProcedure.query(async ({ ctx }) => {
     const wallets = await ctx.db
@@ -190,26 +313,160 @@ export const profitTrackerRouter = createTRPCRouter({
       };
     }),
 
-  // Update transaction data (bulk update for existing wallets)
-  updateData: protectedProcedure
+  // Update data from Stellar network
+  updateFromStellar: publicProcedure
     .input(
-      z.object({
-        walletAddress: z.string().max(56),
-      })
+      z
+        .object({
+          walletAddress: z.string().max(56).optional(),
+        })
+        .optional()
     )
     .mutation(async ({ ctx, input }) => {
-      // This would typically fetch fresh data from Stellar network
-      // For now, we'll just return success
-      // In a real implementation, this would:
-      // 1. Fetch latest transactions from Stellar
-      // 2. Calculate profit metrics
-      // 3. Create new snapshot
+      try {
+        // Get wallets to update
+        let walletsToUpdate: Array<{ address: string; name: string }>;
 
-      return {
-        success: true,
-        message: "Data update initiated",
-        walletAddress: input.walletAddress,
-      };
+        if (input?.walletAddress) {
+          // Update specific wallet
+          const wallet = await ctx.db
+            .select()
+            .from(profitTrackerWalletsTable)
+            .where(eq(profitTrackerWalletsTable.address, input.walletAddress))
+            .limit(1);
+
+          if (wallet.length === 0) {
+            throw new Error(`Wallet ${input.walletAddress} not found`);
+          }
+          walletsToUpdate = [
+            { address: wallet[0].address, name: wallet[0].name },
+          ];
+        } else {
+          // Update all wallets
+          const allWallets = await ctx.db
+            .select({
+              address: profitTrackerWalletsTable.address,
+              name: profitTrackerWalletsTable.name,
+            })
+            .from(profitTrackerWalletsTable);
+          walletsToUpdate = allWallets;
+        }
+
+        const updateResults = [];
+
+        for (const wallet of walletsToUpdate) {
+          try {
+            // Fetch fresh data from Stellar
+            const stellarData = await stellarService.analyzeWalletActivity(
+              wallet.address
+            );
+
+            if (stellarData.error) {
+              updateResults.push({
+                wallet: wallet.name,
+                success: false,
+                error: stellarData.error,
+              });
+              continue;
+            }
+
+            // Upsert snapshot data - first try to update, then insert if not exists
+            const existingSnapshot = await ctx.db
+              .select()
+              .from(profitTrackerSnapshotsTable)
+              .where(
+                eq(profitTrackerSnapshotsTable.walletAddress, wallet.address)
+              )
+              .limit(1);
+
+            if (existingSnapshot.length > 0) {
+              // Update existing snapshot
+              await ctx.db
+                .update(profitTrackerSnapshotsTable)
+                .set({
+                  currentBalances: JSON.stringify(stellarData.currentBalances),
+                  totalHollowvoxSold: stellarData.totalHollowvoxSold,
+                  totalXlmReceived: stellarData.totalXlmReceived,
+                  averageSellPrice: stellarData.averageSellPrice,
+                  estimatedProfit: stellarData.estimatedProfit,
+                  actionFundAllocation: stellarData.actionFundAllocation,
+                  impactFundAllocation: stellarData.impactFundAllocation,
+                  totalLiquidityProvided: stellarData.totalLiquidityProvided,
+                  transactionCount: stellarData.transactionCount,
+                  lastTransactionDate: stellarData.lastTransactionDate,
+                  createdAt: new Date(),
+                })
+                .where(
+                  eq(profitTrackerSnapshotsTable.walletAddress, wallet.address)
+                );
+            } else {
+              // Insert new snapshot
+              await ctx.db.insert(profitTrackerSnapshotsTable).values({
+                walletAddress: wallet.address,
+                currentBalances: JSON.stringify(stellarData.currentBalances),
+                totalHollowvoxSold: stellarData.totalHollowvoxSold,
+                totalXlmReceived: stellarData.totalXlmReceived,
+                averageSellPrice: stellarData.averageSellPrice,
+                estimatedProfit: stellarData.estimatedProfit,
+                actionFundAllocation: stellarData.actionFundAllocation,
+                impactFundAllocation: stellarData.impactFundAllocation,
+                totalLiquidityProvided: stellarData.totalLiquidityProvided,
+                transactionCount: stellarData.transactionCount,
+                lastTransactionDate: stellarData.lastTransactionDate,
+              });
+            }
+
+            // Update/insert recent transactions
+            for (const tx of stellarData.recentTransactions) {
+              await ctx.db
+                .insert(profitTrackerTransactionsTable)
+                .values({
+                  id: tx.id,
+                  walletAddress: wallet.address,
+                  transactionDate: new Date(tx.date),
+                  transactionType: tx.type as "trade" | "payment" | "liquidity",
+                  hollowvoxAmount: tx.hollowvoxAmount,
+                  xlmAmount: tx.xlmAmount,
+                  price: tx.price,
+                  counterparty: tx.counterparty,
+                  poolShares: tx.poolShares,
+                })
+                .onConflictDoNothing();
+            }
+
+            updateResults.push({
+              wallet: wallet.name,
+              success: true,
+              transactions: stellarData.recentTransactions.length,
+            });
+          } catch (error) {
+            updateResults.push({
+              wallet: wallet.name,
+              success: false,
+              error: error instanceof Error ? error.message : "Unknown error",
+            });
+          }
+        }
+
+        const successfulUpdates = updateResults.filter((r) => r.success).length;
+        const failedUpdates = updateResults.filter((r) => !r.success).length;
+
+        return {
+          success: failedUpdates === 0,
+          message: `Updated ${successfulUpdates} wallets${
+            failedUpdates > 0 ? `, ${failedUpdates} failed` : ""
+          }`,
+          updatedWallets: successfulUpdates,
+          results: updateResults,
+        };
+      } catch (error) {
+        console.error("Error updating from Stellar:", error);
+        throw new Error(
+          error instanceof Error
+            ? error.message
+            : "Failed to update from Stellar"
+        );
+      }
     }),
 
   // Get debug information
@@ -244,3 +501,25 @@ export const profitTrackerRouter = createTRPCRouter({
       };
     }),
 });
+
+// Helper function to seed default wallets
+async function seedDefaultWallets(database: typeof db) {
+  const defaultWallets = StellarService.getDefaultWallets();
+
+  for (const wallet of defaultWallets) {
+    // Validate Stellar address format
+    if (!StellarService.isValidStellarAddress(wallet.address)) {
+      console.error(`Invalid Stellar address format: ${wallet.address}`);
+      continue;
+    }
+
+    try {
+      await database
+        .insert(profitTrackerWalletsTable)
+        .values(wallet)
+        .onConflictDoNothing();
+    } catch (error) {
+      console.error(`Error seeding wallet ${wallet.address}:`, error);
+    }
+  }
+}

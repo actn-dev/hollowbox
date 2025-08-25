@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ProfitTracker } from "@/components/profit-tracker";
+import { ProfitTracker } from "@/components/profit-tracker-new";
 import { AlertTriangle } from "lucide-react";
 
 export const metadata: Metadata = {
