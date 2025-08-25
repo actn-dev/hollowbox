@@ -1,4 +1,14 @@
 import { postRouter } from "~/server/api/routers/post";
+import { bugReportsRouter } from "~/server/api/routers/bug-reports";
+import { claimRouter } from "~/server/api/routers/claim";
+import { gameRewardsRouter } from "~/server/api/routers/game-rewards";
+import { signalHuntRouter } from "~/server/api/routers/signal-hunt";
+import { profitTrackerRouter } from "~/server/api/routers/profit-tracker";
+import { watchlistRouter } from "~/server/api/routers/watchlist";
+import { tiersRouter } from "~/server/api/routers/tiers";
+import { adminRouter } from "~/server/api/routers/admin";
+import { monitoringRouter } from "~/server/api/routers/monitoring";
+import { tokenStatsRouter } from "~/server/api/routers/token-stats";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -8,6 +18,16 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
  */
 export const appRouter = createTRPCRouter({
   post: postRouter,
+  bugReports: bugReportsRouter,
+  claim: claimRouter,
+  gameRewards: gameRewardsRouter,
+  signalHunt: signalHuntRouter,
+  profitTracker: profitTrackerRouter,
+  watchlist: watchlistRouter,
+  tiers: tiersRouter,
+  admin: adminRouter,
+  monitoring: monitoringRouter,
+  tokenStats: tokenStatsRouter,
 });
 
 // export type definition of API
