@@ -105,6 +105,8 @@ export class StellarService {
       return cached.data;
     }
 
+    console.log("Fetching from Stellar API:", url);
+
     try {
       const response = await fetch(url, {
         headers: {
@@ -121,10 +123,10 @@ export class StellarService {
       const data = await response.json();
 
       // Cache the response
-      this.requestCache.set(cacheKey, {
-        data,
-        expires: now + this.cacheTimeout,
-      });
+      // this.requestCache.set(cacheKey, {
+      //   data,
+      //   expires: now + this.cacheTimeout,
+      // });
 
       return data;
     } catch (error) {
@@ -153,7 +155,7 @@ export class StellarService {
     accountId: string,
     limit = 200,
     cursor?: string
-  ): Promise<{ records: StellarOperation[]; _links: any }> {
+  ): Promise<{ _embedded: { records: StellarOperation[] }; _links: any }> {
     let endpoint = `/accounts/${accountId}/operations?order=desc&limit=${limit}`;
     if (cursor) {
       endpoint += `&cursor=${cursor}`;
@@ -223,7 +225,7 @@ export class StellarService {
         poolShares?: number;
       }> = [];
 
-      for (const operation of operations.records) {
+      for (const operation of operations._embedded.records) {
         // Track HOLLOWVOX selling operations
         if (
           operation.type === "manage_sell_offer" &&

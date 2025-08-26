@@ -1,25 +1,42 @@
-import { NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { NextResponse } from "next/server";
+import { db } from "@/server/db";
+import { sql } from "drizzle-orm";
 
-const sql = neon(process.env.DATABASE_URL!)
-
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const body = await request.json()
-    const { tierName, tokenRequirement, tierColor, tierBgColor, tierBorderColor, tierIcon, benefits, isActive } = body
-    const tierId = params.id
+    const body = await request.json();
+    const {
+      tierName,
+      tokenRequirement,
+      tierColor,
+      tierBgColor,
+      tierBorderColor,
+      tierIcon,
+      benefits,
+      isActive,
+    } = body;
+    const tierId = params.id;
 
     // Validate required fields
     if (!tierName || !tokenRequirement) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
     // Validate token requirement is positive
     if (tokenRequirement <= 0) {
-      return NextResponse.json({ error: "Token requirement must be positive" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Token requirement must be positive" },
+        { status: 400 }
+      );
     }
 
-    const [updatedTier] = await sql`
+    const updatedRes = await db.run(sql`
       UPDATE tier_config 
       SET 
         tier_name = ${tierName},
@@ -43,36 +60,52 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         tier_icon as "tierIcon",
         benefits,
         is_active as "isActive"
-    `
+  `);
+
+    const updatedTier = (updatedRes.rows || [])[0];
 
     if (!updatedTier) {
-      return NextResponse.json({ error: "Tier not found" }, { status: 404 })
+      return NextResponse.json({ error: "Tier not found" }, { status: 404 });
     }
 
-    return NextResponse.json(updatedTier)
+    return NextResponse.json(updatedTier);
   } catch (error) {
-    console.error("Error updating tier:", error)
-    return NextResponse.json({ error: "Failed to update tier" }, { status: 500 })
+    console.error("Error updating tier:", error);
+    return NextResponse.json(
+      { error: "Failed to update tier" },
+      { status: 500 }
+    );
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const tierId = params.id
+    const tierId = params.id;
 
-    const [deletedTier] = await sql`
+    const deletedRes = await db.run(sql`
       DELETE FROM tier_config 
       WHERE id = ${tierId}
       RETURNING id, tier_level as "tierLevel", tier_name as "tierName"
-    `
+    `);
+
+    const deletedTier = (deletedRes.rows || [])[0];
 
     if (!deletedTier) {
-      return NextResponse.json({ error: "Tier not found" }, { status: 404 })
+      return NextResponse.json({ error: "Tier not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "Tier deleted successfully", tier: deletedTier })
+    return NextResponse.json({
+      message: "Tier deleted successfully",
+      tier: deletedTier,
+    });
   } catch (error) {
-    console.error("Error deleting tier:", error)
-    return NextResponse.json({ error: "Failed to delete tier" }, { status: 500 })
+    console.error("Error deleting tier:", error);
+    return NextResponse.json(
+      { error: "Failed to delete tier" },
+      { status: 500 }
+    );
   }
 }

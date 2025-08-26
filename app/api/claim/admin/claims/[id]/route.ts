@@ -1,17 +1,24 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { type NextRequest, NextResponse } from "next/server";
+import { db } from "@/server/db";
+import { sql } from "drizzle-orm";
 
-const sql = neon(process.env.DATABASE_URL!)
-
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { status } = await request.json()
+    const { status } = await request.json();
 
-    if (!status || !["pending", "approved", "shipped", "completed", "cancelled"].includes(status)) {
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 })
+    if (
+      !status ||
+      !["pending", "approved", "shipped", "completed", "cancelled"].includes(
+        status
+      )
+    ) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
-    const [updatedClaim] = await sql`
+    const updatedRes = await db.run(sql`
       UPDATE user_claims
       SET status = ${status}
       WHERE id = ${Number(params.id)}
@@ -27,10 +34,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         entries,
         status,
         claimed_at as "claimedAt"
-    `
+    `);
+
+    const updatedClaim = (updatedRes.rows || [])[0];
 
     if (!updatedClaim) {
-      return NextResponse.json({ error: "Claim not found" }, { status: 404 })
+      return NextResponse.json({ error: "Claim not found" }, { status: 404 });
     }
 
     // Format the response
@@ -43,11 +52,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         phone: updatedClaim.userPhone,
         notes: updatedClaim.userNotes,
       },
-    }
+    };
 
-    return NextResponse.json(result)
+    return NextResponse.json(result);
   } catch (error) {
-    console.error("Error updating claim status:", error)
-    return NextResponse.json({ error: "Failed to update claim status" }, { status: 500 })
+    console.error("Error updating claim status:", error);
+    return NextResponse.json(
+      { error: "Failed to update claim status" },
+      { status: 500 }
+    );
   }
 }

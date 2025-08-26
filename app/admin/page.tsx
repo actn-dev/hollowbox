@@ -122,12 +122,14 @@ export default function AdminPage() {
   };
 
   const handleUpdateClaimStatus = (claimId: string, status: string) => {
+    // @ts-ignore
     updateClaimStatusMutation.mutate({ claimId, status });
   };
 
   const handleUpdateTier = (
     updatedData: Partial<TierConfig> & { id: string }
   ) => {
+    // @ts-ignore
     updateTierMutation.mutate(updatedData);
   };
 

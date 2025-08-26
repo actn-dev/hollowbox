@@ -357,6 +357,7 @@ export const profitTrackerRouter = createTRPCRouter({
         for (const wallet of walletsToUpdate) {
           try {
             // Fetch fresh data from Stellar
+            console.log("wallet adresjlja, jl", wallet.address);
             const stellarData = await stellarService.analyzeWalletActivity(
               wallet.address
             );

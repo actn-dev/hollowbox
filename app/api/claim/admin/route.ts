@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
+import { NextResponse } from "next/server";
+import { db } from "@/server/db";
+import { sql } from "drizzle-orm";
 
 export async function GET() {
   try {
     // Get all claims with item details
-    const claims = await sql`
+    const claimsRes = await db.run(sql`
       SELECT 
         uc.id,
         uc.item_id as "itemId",
@@ -29,10 +28,11 @@ export async function GET() {
       FROM user_claims uc
       JOIN claimable_items ci ON uc.item_id = ci.id
       ORDER BY uc.claimed_at DESC
-    `
+  `);
+    const claims = claimsRes.rows || [];
 
     // Get statistics
-    const [stats] = await sql`
+    const statsRes = await db.run(sql`
       SELECT 
         COUNT(*) as "totalClaims",
         COUNT(CASE WHEN uc.status = 'pending' THEN 1 END) as "pendingClaims",
@@ -47,7 +47,8 @@ export async function GET() {
         COUNT(CASE WHEN ci.winner_announced = true THEN 1 END) as "itemsWithWinners"
       FROM user_claims uc
       JOIN claimable_items ci ON uc.item_id = ci.id
-    `
+  `);
+    const stats = (statsRes.rows || [])[0] || {};
 
     return NextResponse.json({
       claims,
@@ -64,9 +65,12 @@ export async function GET() {
         expiredItems: Number(stats.expiredItems),
         itemsWithWinners: Number(stats.itemsWithWinners),
       },
-    })
+    });
   } catch (error) {
-    console.error("Error fetching admin data:", error)
-    return NextResponse.json({ error: "Failed to fetch admin data" }, { status: 500 })
+    console.error("Error fetching admin data:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch admin data" },
+      { status: 500 }
+    );
   }
 }

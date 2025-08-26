@@ -1,11 +1,13 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { type NextRequest, NextResponse } from "next/server";
+import { db } from "@/server/db";
+import { sql } from "drizzle-orm";
 
-const sql = neon(process.env.DATABASE_URL!)
-
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const [item] = await sql`
+    const itemRes = await db.run(sql`
       SELECT 
         id,
         title,
@@ -21,25 +23,41 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         created_at as "createdAt"
       FROM claimable_items
       WHERE id = ${Number(params.id)}
-    `
+  `);
+
+    const item = (itemRes.rows || [])[0];
 
     if (!item) {
-      return NextResponse.json({ error: "Item not found" }, { status: 404 })
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
-    return NextResponse.json(item)
+    return NextResponse.json(item);
   } catch (error) {
-    console.error("Error fetching claimable item:", error)
-    return NextResponse.json({ error: "Failed to fetch item" }, { status: 500 })
+    console.error("Error fetching claimable item:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch item" },
+      { status: 500 }
+    );
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { title, description, imageUrl, tokensRequired, category, isActive, claimsRemaining, expirationDate } =
-      await request.json()
+    const {
+      title,
+      description,
+      imageUrl,
+      tokensRequired,
+      category,
+      isActive,
+      claimsRemaining,
+      expirationDate,
+    } = await request.json();
 
-    const [updatedItem] = await sql`
+    const updatedRes = await db.run(sql`
       UPDATE claimable_items
       SET 
         title = ${title},
@@ -64,34 +82,47 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         winner_announced as "winnerAnnounced",
         winner_announced_at as "winnerAnnouncedAt",
         created_at as "createdAt"
-    `
+    `);
+
+    const updatedItem = (updatedRes.rows || [])[0];
 
     if (!updatedItem) {
-      return NextResponse.json({ error: "Item not found" }, { status: 404 })
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
-    return NextResponse.json(updatedItem)
+    return NextResponse.json(updatedItem);
   } catch (error) {
-    console.error("Error updating claimable item:", error)
-    return NextResponse.json({ error: "Failed to update item" }, { status: 500 })
+    console.error("Error updating claimable item:", error);
+    return NextResponse.json(
+      { error: "Failed to update item" },
+      { status: 500 }
+    );
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const [deletedItem] = await sql`
+    const deletedRes = await db.run(sql`
       DELETE FROM claimable_items
       WHERE id = ${Number(params.id)}
       RETURNING id
-    `
+    `);
+
+    const deletedItem = (deletedRes.rows || [])[0];
 
     if (!deletedItem) {
-      return NextResponse.json({ error: "Item not found" }, { status: 404 })
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "Item deleted successfully" })
+    return NextResponse.json({ message: "Item deleted successfully" });
   } catch (error) {
-    console.error("Error deleting claimable item:", error)
-    return NextResponse.json({ error: "Failed to delete item" }, { status: 500 })
+    console.error("Error deleting claimable item:", error);
+    return NextResponse.json(
+      { error: "Failed to delete item" },
+      { status: 500 }
+    );
   }
 }

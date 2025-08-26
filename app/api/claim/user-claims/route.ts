@@ -1,23 +1,28 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
+import { type NextRequest, NextResponse } from "next/server";
+import { db } from "@/server/db";
+import { sql } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const address = searchParams.get("address")
+    const { searchParams } = new URL(request.url);
+    const address = searchParams.get("address");
 
     if (!address) {
-      return NextResponse.json({ error: "Wallet address is required" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Wallet address is required" },
+        { status: 400 }
+      );
     }
 
     // Validate Stellar address format
     if (!/^G[A-Z2-7]{55}$/.test(address)) {
-      return NextResponse.json({ error: "Invalid Stellar wallet address format" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Invalid Stellar wallet address format" },
+        { status: 400 }
+      );
     }
 
-    const claims = await sql`
+    const claimsRes = await db.run(sql`
       SELECT 
         uc.id,
         uc.item_id as "itemId",
@@ -39,11 +44,14 @@ export async function GET(request: NextRequest) {
       JOIN claimable_items ci ON uc.item_id = ci.id
       WHERE uc.wallet_address = ${address}
       ORDER BY uc.claimed_at DESC
-    `
-
-    return NextResponse.json(claims)
+    `);
+    const claims = claimsRes.rows || [];
+    return NextResponse.json(claims);
   } catch (error) {
-    console.error("Error fetching user claims:", error)
-    return NextResponse.json({ error: "Failed to fetch user claims" }, { status: 500 })
+    console.error("Error fetching user claims:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch user claims" },
+      { status: 500 }
+    );
   }
 }

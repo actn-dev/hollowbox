@@ -1,11 +1,10 @@
-import { NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
+import { NextResponse } from "next/server";
+import { db } from "@/server/db";
+import { sql } from "drizzle-orm";
 
 export async function GET() {
   try {
-    const tiers = await sql`
+    const tiers = await db.run(sql`
       SELECT 
         id,
         tier_level as "tierLevel",
@@ -19,11 +18,14 @@ export async function GET() {
       FROM tier_config
       WHERE is_active = true
       ORDER BY tier_level ASC
-    `
+    `);
 
-    return NextResponse.json(tiers)
+    return NextResponse.json(tiers.rows);
   } catch (error) {
-    console.error("Error fetching tiers:", error)
-    return NextResponse.json({ error: "Failed to fetch tiers" }, { status: 500 })
+    console.error("Error fetching tiers:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch tiers" },
+      { status: 500 }
+    );
   }
 }

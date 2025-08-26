@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
+import { db } from "@/server/db";
+import { sql } from "drizzle-orm";
 
 interface TradeData {
   totalProfit: number;
@@ -23,7 +24,6 @@ interface TradeData {
 }
 
 const stellarServerUrl = "https://horizon.stellar.org/";
-const sqlClient = neon(process.env.DATABASE_URL!);
 
 // Configuration with validation
 const HOLLOWVOX_ASSET_CODE = "HOLLOWVOX";
@@ -390,11 +390,13 @@ export async function POST(request: Request) {
     if (!walletAddress) {
       console.log("No wallet address provided, updating all tracked wallets");
 
-      const wallets = await sqlClient`
+      const walletsRes = await db.run(sql`
         SELECT address FROM profit_tracker_wallets
         ORDER BY id
         LIMIT 10
-      `;
+      `);
+
+      const wallets = (walletsRes.rows || []) as any[];
 
       if (wallets && wallets.length > 0) {
         // Process each wallet sequentially
@@ -407,7 +409,7 @@ export async function POST(request: Request) {
             const tradeData = await processWalletData(wallet.address);
 
             // Update profit_tracker_snapshots with aggregated metrics
-            await sqlClient`
+            await db.run(sql`
               INSERT INTO profit_tracker_snapshots (
                 wallet_address, 
                 estimated_profit, 
@@ -443,13 +445,13 @@ export async function POST(request: Request) {
                 total_hollowvox_sold = ${tradeData.totalHollowvoxSold || 0},
                 total_xlm_received = ${tradeData.totalXlmReceived || 0},
                 average_sell_price = ${tradeData.averageSellPrice || 0}
-            `;
+            `);
 
             // Insert recent transactions into profit_tracker_transactions
             for (const tx of tradeData.recentTransactions.slice(0, 20)) {
               // Limit to 20 most recent
               try {
-                await sqlClient`
+                await db.run(sql`
                   INSERT INTO profit_tracker_transactions (
                     id, 
                     wallet_address, 
@@ -479,7 +481,7 @@ export async function POST(request: Request) {
                     ${tx.profit ? tx.profit / parseFloat(tx.amount) : 0}
                   )
                   ON CONFLICT (id) DO NOTHING
-                `;
+                `);
               } catch (txError) {
                 console.error(
                   `Error inserting transaction ${tx.hash}:`,
@@ -525,11 +527,11 @@ export async function POST(request: Request) {
     // Process a single wallet
     try {
       // First check if wallet exists in profit_tracker_wallets
-      const walletCheck = await sqlClient`
+      const walletCheckRes = await db.run(sql`
         SELECT address FROM profit_tracker_wallets WHERE address = ${walletAddress}
-      `;
+      `);
 
-      if (!walletCheck || walletCheck.length === 0) {
+      if (!walletCheckRes.rows || walletCheckRes.rows.length === 0) {
         return NextResponse.json(
           {
             success: false,
@@ -543,7 +545,7 @@ export async function POST(request: Request) {
       const tradeData = await processWalletData(walletAddress);
 
       // Update profit_tracker_snapshots with aggregated metrics
-      await sqlClient`
+      await db.run(sql`
         INSERT INTO profit_tracker_snapshots (
           wallet_address, 
           estimated_profit, 
@@ -579,13 +581,13 @@ export async function POST(request: Request) {
           total_hollowvox_sold = ${tradeData.totalHollowvoxSold || 0},
           total_xlm_received = ${tradeData.totalXlmReceived || 0},
           average_sell_price = ${tradeData.averageSellPrice || 0}
-      `;
+      `);
 
       // Insert recent transactions into profit_tracker_transactions
       for (const tx of tradeData.recentTransactions.slice(0, 20)) {
         // Limit to 20 most recent
         try {
-          await sqlClient`
+          await db.run(sql`
             INSERT INTO profit_tracker_transactions (
               id, 
               wallet_address, 
@@ -611,7 +613,7 @@ export async function POST(request: Request) {
               ${tx.profit ? tx.profit / parseFloat(tx.amount) : 0}
             )
             ON CONFLICT (id) DO NOTHING
-          `;
+          `);
         } catch (txError) {
           console.error(`Error inserting transaction ${tx.hash}:`, txError);
           // Continue with other transactions

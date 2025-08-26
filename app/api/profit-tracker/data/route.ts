@@ -1,55 +1,45 @@
-import { NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!, {
-  disableWarningInBrowsers: true,
-})
-
-// Input validation helper
-function validateDatabaseConnection() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL environment variable is not configured")
-  }
-}
+import { NextResponse } from "next/server";
+import { db } from "@/server/db";
+import { sql } from "drizzle-orm";
 
 // Rate limiting helper (simple in-memory store for demo)
-const requestCounts = new Map<string, { count: number; resetTime: number }>()
-const RATE_LIMIT = 60 // requests per minute
-const RATE_WINDOW = 60 * 1000 // 1 minute in milliseconds
+const requestCounts = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT = 60; // requests per minute
+const RATE_WINDOW = 60 * 1000; // 1 minute in milliseconds
 
 function checkRateLimit(identifier: string): boolean {
-  const now = Date.now()
-  const userRequests = requestCounts.get(identifier)
+  const now = Date.now();
+  const userRequests = requestCounts.get(identifier);
 
   if (!userRequests || now > userRequests.resetTime) {
-    requestCounts.set(identifier, { count: 1, resetTime: now + RATE_WINDOW })
-    return true
+    requestCounts.set(identifier, { count: 1, resetTime: now + RATE_WINDOW });
+    return true;
   }
 
   if (userRequests.count >= RATE_LIMIT) {
-    return false
+    return false;
   }
 
-  userRequests.count++
-  return true
+  userRequests.count++;
+  return true;
 }
 
 export async function GET(request: Request) {
   try {
-    // Validate environment
-    validateDatabaseConnection()
-
     // Basic rate limiting
-    const clientIP = request.headers.get("x-forwarded-for") || "unknown"
+    const clientIP = request.headers.get("x-forwarded-for") || "unknown";
     if (!checkRateLimit(clientIP)) {
       return NextResponse.json(
-        { success: false, error: "Rate limit exceeded. Please try again later." },
-        { status: 429 },
-      )
+        {
+          success: false,
+          error: "Rate limit exceeded. Please try again later.",
+        },
+        { status: 429 }
+      );
     }
 
     // Create tables if they don't exist (with proper error handling)
-    await sql`
+    await db.run(sql`
       CREATE TABLE IF NOT EXISTS profit_tracker_wallets (
         id SERIAL PRIMARY KEY,
         address VARCHAR(56) NOT NULL UNIQUE CHECK (length(address) = 56),
@@ -58,9 +48,9 @@ export async function GET(request: Request) {
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `
+    `);
 
-    await sql`
+    await db.run(sql`
       CREATE TABLE IF NOT EXISTS profit_tracker_snapshots (
         id SERIAL PRIMARY KEY,
         wallet_address VARCHAR(56) NOT NULL CHECK (length(wallet_address) = 56),
@@ -77,9 +67,9 @@ export async function GET(request: Request) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (wallet_address) REFERENCES profit_tracker_wallets(address) ON DELETE CASCADE
       )
-    `
+    `);
 
-    await sql`
+    await db.run(sql`
       CREATE TABLE IF NOT EXISTS profit_tracker_transactions (
         id VARCHAR(64) PRIMARY KEY CHECK (length(id) > 0),
         wallet_address VARCHAR(56) NOT NULL CHECK (length(wallet_address) = 56),
@@ -94,7 +84,7 @@ export async function GET(request: Request) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (wallet_address) REFERENCES profit_tracker_wallets(address) ON DELETE CASCADE
       )
-    `
+    `);
 
     // Insert default wallet configurations with validation
     const defaultWallets = [
@@ -108,28 +98,29 @@ export async function GET(request: Request) {
         address: "GAALODFU5N247F4GQMOSBSZWDYFA3VUBFUU4OCO6YTPPA4HM66VSEXZA",
         name: "Secondary Sales Wallet",
         color: "#ff6b00",
-        description: "Additional HOLLOWVOX token sales wallet + Liquidity Provider",
+        description:
+          "Additional HOLLOWVOX token sales wallet + Liquidity Provider",
       },
-    ]
+    ];
 
     for (const wallet of defaultWallets) {
       // Validate Stellar address format
       if (!/^G[A-Z2-7]{55}$/.test(wallet.address)) {
-        console.error(`Invalid Stellar address format: ${wallet.address}`)
-        continue
+        console.error(`Invalid Stellar address format: ${wallet.address}`);
+        continue;
       }
 
-      await sql`
+      await db.run(sql`
         INSERT INTO profit_tracker_wallets (address, name, color, description)
         VALUES (${wallet.address}, ${wallet.name}, ${wallet.color}, ${wallet.description})
         ON CONFLICT (address) DO NOTHING
-      `
+      `);
     }
 
-    console.log("📊 Fetching profit tracker data from database...")
+    console.log("📊 Fetching profit tracker data from database...");
 
     // Get wallet configurations with latest snapshots (with limits to prevent large queries)
-    const wallets = await sql`
+    const walletsRes = await db.run(sql`
       SELECT 
         w.address, w.name, w.color, w.description,
         s.current_balances, s.total_hollowvox_sold, s.total_xlm_received,
@@ -140,19 +131,20 @@ export async function GET(request: Request) {
       LEFT JOIN profit_tracker_snapshots s ON w.address = s.wallet_address
       ORDER BY w.id
       LIMIT 10
-    `
+    `);
 
-    const walletData = []
+    const wallets = (walletsRes.rows || []) as any[];
+    const walletData: any[] = [];
 
     for (const wallet of wallets) {
       // Validate wallet data
       if (!wallet.address || !/^G[A-Z2-7]{55}$/.test(wallet.address)) {
-        console.error(`Invalid wallet address in database: ${wallet.address}`)
-        continue
+        console.error(`Invalid wallet address in database: ${wallet.address}`);
+        continue;
       }
 
       // Get recent transactions for this wallet (limited to prevent large queries)
-      const transactions = await sql`
+      const txRes = await db.run(sql`
         SELECT 
           id, transaction_date, transaction_type, hollowvox_amount,
           xlm_amount, price, issuer, counterparty, pool_shares
@@ -160,11 +152,15 @@ export async function GET(request: Request) {
         WHERE wallet_address = ${wallet.address}
         ORDER BY transaction_date DESC
         LIMIT 10
-      `
+      `);
+
+      const transactions = (txRes.rows || []) as any[];
 
       const recentTransactions = transactions.map((tx: any) => ({
         id: tx.id,
-        date: new Date(tx.transaction_date).toLocaleDateString(),
+        date: tx.transaction_date
+          ? new Date(tx.transaction_date).toLocaleDateString()
+          : null,
         type: tx.transaction_type,
         hollowvoxAmount: Number(tx.hollowvox_amount || 0),
         xlmAmount: Number(tx.xlm_amount || 0),
@@ -172,7 +168,7 @@ export async function GET(request: Request) {
         issuer: tx.issuer,
         counterparty: tx.counterparty,
         poolShares: tx.pool_shares ? Number(tx.pool_shares) : undefined,
-      }))
+      }));
 
       walletData.push({
         address: wallet.address,
@@ -190,17 +186,34 @@ export async function GET(request: Request) {
         transactionCount: Number(wallet.transaction_count || 0),
         lastTransactionDate: wallet.last_transaction_date || "No transactions",
         recentTransactions,
-        lastUpdated: wallet.last_updated ? new Date(wallet.last_updated).toLocaleString() : "Never updated",
+        lastUpdated: wallet.last_updated
+          ? new Date(wallet.last_updated).toLocaleString()
+          : "Never updated",
         isStreaming: false,
-      })
+      });
     }
 
     // Calculate combined metrics with validation
-    const combinedProfit = walletData.reduce((sum, wallet) => sum + (wallet.estimatedProfit || 0), 0)
-    const combinedActionFund = walletData.reduce((sum, wallet) => sum + (wallet.actionFundAllocation || 0), 0)
-    const combinedImpactFund = walletData.reduce((sum, wallet) => sum + (wallet.impactFundAllocation || 0), 0)
-    const combinedLiquidity = walletData.reduce((sum, wallet) => sum + (wallet.totalLiquidityProvided || 0), 0)
-    const totalTransactions = walletData.reduce((sum, wallet) => sum + (wallet.transactionCount || 0), 0)
+    const combinedProfit = walletData.reduce(
+      (sum, wallet) => sum + (wallet.estimatedProfit || 0),
+      0
+    );
+    const combinedActionFund = walletData.reduce(
+      (sum, wallet) => sum + (wallet.actionFundAllocation || 0),
+      0
+    );
+    const combinedImpactFund = walletData.reduce(
+      (sum, wallet) => sum + (wallet.impactFundAllocation || 0),
+      0
+    );
+    const combinedLiquidity = walletData.reduce(
+      (sum, wallet) => sum + (wallet.totalLiquidityProvided || 0),
+      0
+    );
+    const totalTransactions = walletData.reduce(
+      (sum, wallet) => sum + (wallet.transactionCount || 0),
+      0
+    );
 
     const responseData = {
       wallets: walletData,
@@ -212,29 +225,29 @@ export async function GET(request: Request) {
       isLiveStreaming: false,
       lastRefresh: new Date().toLocaleString(),
       refreshId: `db-${Date.now()}`,
-    }
+    };
 
-    console.log("✅ Successfully fetched profit tracker data from database")
+    console.log("✅ Successfully fetched profit tracker data from database");
 
     return NextResponse.json({
       success: true,
       data: responseData,
-    })
+    });
   } catch (error) {
-    console.error("❌ Error fetching profit tracker data:", error)
+    console.error("❌ Error fetching profit tracker data:", error);
 
     // Don't expose internal error details to client
     const errorMessage =
       error instanceof Error && error.message.includes("DATABASE_URL")
         ? "Database configuration error"
-        : "Failed to fetch profit tracker data"
+        : "Failed to fetch profit tracker data";
 
     return NextResponse.json(
       {
         success: false,
         error: errorMessage,
       },
-      { status: 500 },
-    )
+      { status: 500 }
+    );
   }
 }

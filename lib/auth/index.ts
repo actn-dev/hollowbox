@@ -99,15 +99,7 @@ export const auth = betterAuth({
         ctx.path.startsWith("/callback/") // Google/social login callback
       ) {
         try {
-          console.log(
-            ctx.context.newSession,
-            "xxx",
-            ctx.context.session,
-            "body",
-            ctx.body
-          );
           const session = ctx.context.newSession;
-          console.log(session?.user, "sessio user found");
           if (session?.user?.id) {
             const userId = session.user.id;
             const email = session.user.email;

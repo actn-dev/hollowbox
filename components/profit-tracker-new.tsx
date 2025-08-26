@@ -298,11 +298,11 @@ export function ProfitTracker() {
                 </div>
               </CardHeader>
               <CardContent>
-                {wallet.error ? (
+                {!wallet ? (
                   <Alert className="border-red-500/50 bg-red-500/10">
                     <AlertTriangle className="h-4 w-4 text-red-400" />
                     <AlertDescription className="text-red-200">
-                      Error: {wallet.error}
+                      Error: Wallet not found
                     </AlertDescription>
                   </Alert>
                 ) : (
@@ -317,7 +317,7 @@ export function ProfitTracker() {
                           ([asset, balance]) => (
                             <div key={asset} className="text-center">
                               <div className="text-muted-foreground">
-                                {asset}
+                                {asset.slice(0, 10)}...
                               </div>
                               <div className="font-mono font-bold">
                                 {Number(balance).toLocaleString()}
